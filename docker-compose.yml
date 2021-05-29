@@ -1,0 +1,83 @@
+version: '3'
+
+services:
+
+    frontend:
+      container_name: app
+      build: ./Docker/react
+      ports:
+        - 3000:3000
+      command: sh -c "cd frontend && yarn start"
+      volumes:
+        - "./var/www/frontend:/www/frontend"
+      working_dir: /www
+      tty: true
+      links:
+        - backend
+      depends_on:
+        - backend
+
+    backend:
+      container_name: php
+      build: ./Docker/php
+      volumes:
+        - ./var/www/backend:/var/www/backend
+      working_dir: /var/www/backend
+      depends_on:
+        - mysql
+        - mailhog
+
+    nginx:
+      image: nginx
+      container_name: web
+      volumes:
+        - ./Docker/nginx/conf/default.conf:/etc/nginx/conf.d/default.conf
+        - ./var/www/backend/public:/var/www/backend/public
+      ports:
+        - 80:80
+      links:
+        - backend
+      depends_on:
+        - backend
+
+    mailhog:
+      image: mailhog/mailhog
+      container_name: mailhog
+      ports:
+        - "8025:8025"
+        - "1025:1025"
+    
+    mysql:
+      image: mysql:5.7
+      container_name: db
+      environment:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: keijibanapp
+        MYSQL_PASSWORD: root
+        MYSQL_USER: shinji
+        
+        TZ: 'Asia/Tokyo'
+      volumes:
+        - ./Docker/mysql/initdb.d:/docker-entrypoint-initdb.d
+        - ./Docker/mysql/conf.d:/etc/mysql/conf.d
+        - ./Docker/mysql/mysql_data:/var/lib/mysql
+      ports:
+        - 3306:3306
+      command: --innodb-use-native-aio=0 --character-set-server=utf8mb4 
+      user: "1000:50"
+      
+    
+    phpmyadmin:
+      image: phpmyadmin/phpmyadmin
+      container_name: phpmyadmin
+      environment:
+        - PMA_ARBITRARY=1
+        - PMA_HOST=mysql
+        - PMA_USER=shinji
+        - PMA_PASSWORD=root
+      links:
+        - mysql
+      ports:
+        - 1234:80
+      volumes:
+        - /sessions
